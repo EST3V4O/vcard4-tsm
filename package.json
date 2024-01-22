@@ -1,8 +1,10 @@
 {
   "name": "vcard4-tsm",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Port of the vcard4-ts library to provide support for both CJS and ESM",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": {
@@ -34,12 +36,16 @@
     "esm",
     "cjs"
   ],
+  "repository": {
+    "url": "https://github.com/EST3V4O/vcard4-tsm"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsup",
     "lint": "eslint --ext .ts .",
-    "lint:fix": "eslint --ext .ts --fix ."
+    "lint:fix": "eslint --ext .ts --fix .",
+    "prepublish": "pnpm build"
   },
   "engines": {
     "node": ">=16.0.0"
