@@ -1,6 +1,6 @@
 {
   "name": "vcard4-tsm",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Port of the vcard4-ts library to provide support for both CJS and ESM",
   "type": "module",
   "main": "./dist/index.js",
