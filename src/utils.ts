@@ -3,9 +3,9 @@
  * @param char Input character
  * @returns Validity
  */
-export function isPropertyChar(char: string): Boolean {
-  const c = char.toUpperCase();
-  return c === '-' || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+export function isPropertyChar(char: string): boolean {
+  const c = char.toUpperCase()
+  return c === '-' || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
 
 /**
@@ -15,6 +15,6 @@ export function isPropertyChar(char: string): Boolean {
  * @param name The parsed identifier (group, property, or parameter name)
  * @returns The key for the Records.
  */
-export function nameToKey(name: string): Uppercase<string> {
-  return name.toUpperCase().replace(/-/g, '_');
+export function nameToKey(name: string) {
+  return name.toUpperCase().replace(/-/g, '_') as Uppercase<string>
 }

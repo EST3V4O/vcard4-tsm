@@ -1,13 +1,13 @@
-import { parseVCards, sortByPREF, groupVCard } from '../';
+import { parseVCards, sortByPREF, groupVCard } from '../'
 
 describe('Importing through the index', () => {
   it('should import parseVCards', () => {
-    parseVCards('');
-  });
+    parseVCards('')
+  })
   it('should import sortByPREF', () => {
-    sortByPREF({});
-  });
+    sortByPREF({})
+  })
   it('should import groupVCard', () => {
-    groupVCard({});
-  });
-});
+    groupVCard({})
+  })
+})

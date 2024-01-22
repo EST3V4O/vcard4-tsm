@@ -1,7 +1,7 @@
-import { nag, Nag, nagVC, VCardNagAttributes } from './errors.js';
-import { isNonEmptyArray, maybeArray, NonEmptyArray } from './nonEmptyArray.js';
-import { scanSingleParamValue } from './scan.js';
-import { isPropertyChar, nameToKey } from './utils.js';
+import { nag, Nag, nagVC, VCardNagAttributes } from './errors.js'
+import { isNonEmptyArray, maybeArray, NonEmptyArray } from './nonEmptyArray.js'
+import { scanSingleParamValue } from './scan.js'
+import { isPropertyChar, nameToKey } from './utils.js'
 import {
   atLeastOnceProperties,
   exactlyOnceProperties,
@@ -15,28 +15,28 @@ import {
   SingleVCardProperty,
   VCard4,
   VCardParameters,
-} from './vcard4Types.js';
+} from './vcard4Types.js'
 
 export type LineAttributes = {
-  property: string;
-  field: string;
-  entireLine: string;
-  shortenedLine: string;
-};
+  property: string
+  field: string
+  entireLine: string
+  shortenedLine: string
+}
 export type ParsedVCards = {
-  vCards?: NonEmptyArray<VCard4>;
-  nags?: NonEmptyArray<Nag<undefined>>;
-};
+  vCards?: NonEmptyArray<VCard4>
+  nags?: NonEmptyArray<Nag<undefined>>
+}
 export type PartialVCard = Partial<Omit<VCard4, 'nags' | 'unparseable'>> & {
-  nags: Nag<VCardNagAttributes>[];
-  unparseable: string[];
-  didNotStartWithBEGIN?: boolean;
-};
+  nags: Nag<VCardNagAttributes>[]
+  unparseable: string[]
+  didNotStartWithBEGIN?: boolean
+}
 export type TransitionVCard = Partial<Omit<VCard4, 'nags' | 'unparseable'>> & {
-  nags?: Nag<VCardNagAttributes>[];
-  unparseable?: string[];
-  didNotStartWithBEGIN?: boolean;
-};
+  nags?: Nag<VCardNagAttributes>[]
+  unparseable?: string[]
+  didNotStartWithBEGIN?: boolean
+}
 
 /**
  * Parse an RFC 6350 (multi-)vCard input into an array and errors.
@@ -44,28 +44,25 @@ export type TransitionVCard = Partial<Omit<VCard4, 'nags' | 'unparseable'>> & {
  * @param keepErrors Whether very bad vCards should be deleted
  * @returns Array of vCards with metadata; array of global errors
  */
-export function parseVCards(
-  vcf: string,
-  keepDefective: boolean = false,
-): ParsedVCards {
-  let globalNags: Nag<undefined>[] = [];
+export function parseVCards(vcf: string, keepDefective = false): ParsedVCards {
+  const globalNags: Nag<undefined>[] = []
 
   // 1. unwrap: Be lenient in what we accept
   if (!vcf.includes('\r\n') && vcf.includes('\n')) {
-    nag(globalNags, 'FILE_CRLF');
+    nag(globalNags, 'FILE_CRLF')
   }
-  vcf = vcf.replace(/\r?\n[ \t]/g, '');
+  vcf = vcf.replace(/\r?\n[ \t]/g, '')
 
   // 2. process (unwrapped) line by line
-  let vCardInProgress: PartialVCard = { nags: [], unparseable: [] };
-  let vCards: VCard4[] = [];
+  let vCardInProgress: PartialVCard = { nags: [], unparseable: [] }
+  const vCards: VCard4[] = []
   for (const line of vcf.split(/\r?\n/)) {
     if (line === '') {
-      continue; // Skip empty lines, required at the very end (optional otherwise)
+      continue // Skip empty lines, required at the very end (optional otherwise)
     }
-    parseLine(vCardInProgress, line);
+    parseLine(vCardInProgress, line)
     if (!('BEGIN' in vCardInProgress)) {
-      vCardInProgress.didNotStartWithBEGIN = true;
+      vCardInProgress.didNotStartWithBEGIN = true
     }
     if ('END' in vCardInProgress) {
       // Finish this one, ready for a potential next vCard
@@ -73,34 +70,30 @@ export function parseVCards(
         globalNags,
         vCardInProgress,
         keepDefective,
-      );
+      )
       if (card) {
-        vCards.push(card);
+        vCards.push(card)
       }
-      vCardInProgress = { nags: [], unparseable: [] };
+      vCardInProgress = { nags: [], unparseable: [] }
     }
   }
   // vCard still in progress?
   if (interestingDataIn(vCardInProgress)) {
-    const card = ensureCardinalities(
-      globalNags,
-      vCardInProgress,
-      keepDefective,
-    );
+    const card = ensureCardinalities(globalNags, vCardInProgress, keepDefective)
     if (card) {
-      vCards.push(card);
+      vCards.push(card)
     }
   }
 
   // Clean return value
-  let retval = { vCards: maybeArray(vCards), nags: maybeArray(globalNags) };
+  const retval = { vCards: maybeArray(vCards), nags: maybeArray(globalNags) }
   if (!retval.vCards) {
-    delete retval.vCards;
+    delete retval.vCards
   }
   if (!retval.nags) {
-    delete retval.nags;
+    delete retval.nags
   }
-  return retval;
+  return retval
 }
 
 function interestingDataIn(partialVCard: PartialVCard): boolean {
@@ -108,7 +101,7 @@ function interestingDataIn(partialVCard: PartialVCard): boolean {
     Object.entries(partialVCard).length > 2 ||
     partialVCard.nags.length > 0 ||
     partialVCard.unparseable.length > 0
-  );
+  )
 }
 
 /**
@@ -126,19 +119,19 @@ function ensureCardinalities(
   // Major problems
   if (partialVCard.didNotStartWithBEGIN === true) {
     if (keepDefective) {
-      nagVC(partialVCard.nags, 'VCARD_NOT_BEGIN', { property: 'BEGIN' });
+      nagVC(partialVCard.nags, 'VCARD_NOT_BEGIN', { property: 'BEGIN' })
     } else {
-      nag(globalNags, 'VCARD_NOT_BEGIN');
-      return null;
+      nag(globalNags, 'VCARD_NOT_BEGIN')
+      return null
     }
   }
   for (const property of ['BEGIN', 'END'] as const) {
     if (partialVCard[property]?.value?.toUpperCase() !== 'VCARD') {
       if (keepDefective) {
-        nagVC(partialVCard.nags, 'VCARD_BAD_TYPE', { property });
+        nagVC(partialVCard.nags, 'VCARD_BAD_TYPE', { property })
       } else {
-        nag(globalNags, 'VCARD_BAD_TYPE');
-        return null;
+        nag(globalNags, 'VCARD_BAD_TYPE')
+        return null
       }
     }
   }
@@ -148,14 +141,14 @@ function ensureCardinalities(
     if (isExactlyOnceProperty(k)) {
       // Type guard needed to make the compiler happy
       if (!(k in partialVCard)) {
-        nagVC(partialVCard.nags, 'VCARD_MISSING_PROP', { property: k });
-        partialVCard[k] = { value: expectedValue };
+        nagVC(partialVCard.nags, 'VCARD_MISSING_PROP', { property: k })
+        partialVCard[k] = { value: expectedValue }
       } else {
         if (partialVCard[k]!.value.toUpperCase() !== expectedValue) {
           nagVC(partialVCard.nags, 'VALUE_INVALID', {
             property: k,
             line: `${k}:${partialVCard[k]!.value}`,
-          });
+          })
         }
       }
     }
@@ -166,46 +159,46 @@ function ensureCardinalities(
     if (isAtLeastOnceProperty(k)) {
       // Type guard needed to make the compiler happy
       if (!(k in partialVCard)) {
-        nagVC(partialVCard.nags, 'VCARD_MISSING_PROP', { property: k });
-        partialVCard[k] = [{ value: defaultValue }];
+        nagVC(partialVCard.nags, 'VCARD_MISSING_PROP', { property: k })
+        partialVCard[k] = [{ value: defaultValue }]
       }
     }
   }
 
   // Clean: Remove undefined parameters
   for (const [key] of Object.entries(partialVCard)) {
-    const k = key as keyof typeof partialVCard;
+    const k = key as keyof typeof partialVCard
     if (isKnownProperty(k)) {
       if (isAtMostOnceProperty(k) || isExactlyOnceProperty(k)) {
-        const v: SingleVCardProperty<any> = partialVCard[k]!;
+        const v: SingleVCardProperty<any> = partialVCard[k]!
         if (
           'parameters' in v &&
           (!v.parameters || Object.keys(v.parameters).length === 0)
         ) {
-          delete v.parameters;
+          delete v.parameters
         }
       } else {
-        const v: NonEmptyArray<SingleVCardProperty<any>> = partialVCard[k]!;
+        const v: NonEmptyArray<SingleVCardProperty<any>> = partialVCard[k]!
         for (const i in v) {
-          const vi = v[i]; // Improves type checks
+          const vi = v[i] // Improves type checks
           if (
             'parameters' in vi &&
             (!vi.parameters || Object.keys(vi.parameters).length === 0)
           ) {
-            delete vi.parameters;
+            delete vi.parameters
           }
         }
       }
     }
   }
-  for (const [k, v] of Object.entries(partialVCard.x ?? {})) {
+  for (const [, v] of Object.entries(partialVCard.x ?? {})) {
     for (const i in v) {
-      const vi = v[i]; // Improves type checks
+      const vi = v[i] // Improves type checks
       if (
         'parameters' in vi &&
         (!vi.parameters || Object.keys(vi.parameters).length === 0)
       ) {
-        delete vi.parameters;
+        delete vi.parameters
       }
     }
   }
@@ -216,28 +209,28 @@ function ensureCardinalities(
    * possibly empty; at the end, both are optional `NonEmptyArray`s.
    * This is not easily reflected in types, but we're trying.
    */
-  const transitionVCard = partialVCard as TransitionVCard;
+  const transitionVCard = partialVCard as TransitionVCard
   // Clean Nags; set hasErrors
   if (isNonEmptyArray(transitionVCard.nags!)) {
     transitionVCard.hasErrors = (transitionVCard.nags ?? [])
       .map((nag) => nag.isError)
-      .reduce((a, b) => a || b, false);
+      .reduce((a, b) => a || b, false)
   } else {
-    transitionVCard.hasErrors = false;
-    delete transitionVCard.nags;
+    transitionVCard.hasErrors = false
+    delete transitionVCard.nags
   }
 
   // Clean `unparseable`
-  transitionVCard.unparseable = maybeArray(transitionVCard.unparseable!);
+  transitionVCard.unparseable = maybeArray(transitionVCard.unparseable!)
   if (!transitionVCard.unparseable) {
-    delete transitionVCard.unparseable;
+    delete transitionVCard.unparseable
   }
 
   // Clean possible internal flags
-  delete transitionVCard.didNotStartWithBEGIN;
+  delete transitionVCard.didNotStartWithBEGIN
 
   // All the required fields are here now, great!
-  return transitionVCard as VCard4;
+  return transitionVCard as VCard4
 }
 
 /**
@@ -246,31 +239,31 @@ function ensureCardinalities(
  * @param line The new line
  */
 export function parseLine(vCardInProgress: PartialVCard, line: string) {
-  const propertyInfo = extractProperty(line, vCardInProgress.nags);
+  const propertyInfo = extractProperty(line, vCardInProgress.nags)
   if (!propertyInfo) {
-    vCardInProgress.unparseable.push(line);
-    return;
+    vCardInProgress.unparseable.push(line)
+    return
   }
-  const property = propertyInfo.property;
+  const property = propertyInfo.property
   const parameterInfo = parseParameters(
     line,
     propertyInfo.end,
     vCardInProgress.nags,
     property,
-  );
+  )
   if (!parameterInfo) {
     // Has already been nagged
-    vCardInProgress.unparseable.push(line);
-    return;
+    vCardInProgress.unparseable.push(line)
+    return
   }
-  const parameters = parameterInfo.parameters;
+  const parameters = parameterInfo.parameters
   if (line.charAt(parameterInfo.end) !== ':') {
     // Should not happen
-    nagVC(vCardInProgress.nags, 'PROP_MISSING_COLON', { property, line });
-    vCardInProgress.unparseable.push(line);
-    return;
+    nagVC(vCardInProgress.nags, 'PROP_MISSING_COLON', { property, line })
+    vCardInProgress.unparseable.push(line)
+    return
   }
-  const rawValue = line.substring(parameterInfo.end + 1);
+  const rawValue = line.substring(parameterInfo.end + 1)
 
   if (isKnownProperty(property)) {
     // Obtain the value parsed into the right type.
@@ -280,38 +273,37 @@ export function parseLine(vCardInProgress: PartialVCard, line: string) {
     const parsedValue: any = knownProperties[property].parse(
       rawValue,
       (error) => {
-        nagVC(vCardInProgress.nags, error, { property, line });
+        nagVC(vCardInProgress.nags, error, { property, line })
       },
-    );
+    )
 
     if (isExactlyOnceProperty(property) || isAtMostOnceProperty(property)) {
       // Deal with property cardinality
       if (property in vCardInProgress) {
         // Too many; ignore all but first
-        nagVC(vCardInProgress.nags, 'PROP_DUPLICATE', { property, line });
-        vCardInProgress.unparseable.push(line);
-        return;
+        nagVC(vCardInProgress.nags, 'PROP_DUPLICATE', { property, line })
+        vCardInProgress.unparseable.push(line)
       } else {
-        vCardInProgress[property] = { parameters, value: parsedValue };
+        vCardInProgress[property] = { parameters, value: parsedValue }
       }
     } else {
       // Multiple properties: AtLeastOnce, AnyCardinality
       if (property in vCardInProgress) {
-        vCardInProgress[property]!.push({ parameters, value: parsedValue });
+        vCardInProgress[property]!.push({ parameters, value: parsedValue })
       } else {
-        vCardInProgress[property] = [{ parameters, value: parsedValue }];
+        vCardInProgress[property] = [{ parameters, value: parsedValue }]
       }
     }
   } else {
     // Add x property
-    vCardInProgress.x ??= {};
+    vCardInProgress.x ??= {}
     if (property in vCardInProgress.x) {
       vCardInProgress.x[property].push({
         parameters,
         value: rawValue,
-      });
+      })
     } else {
-      vCardInProgress.x[property] = [{ parameters, value: rawValue }];
+      vCardInProgress.x[property] = [{ parameters, value: rawValue }]
     }
   }
 }
@@ -330,22 +322,22 @@ export function scanPropertyOrGroup(
   for (let i = start; i < line.length; i++) {
     if (!isPropertyChar(line.charAt(i))) {
       if (start === i) {
-        nagVC(nags, 'PROP_NAME_EMPTY', { property: '', line });
-        return null;
+        nagVC(nags, 'PROP_NAME_EMPTY', { property: '', line })
+        return null
       } else {
-        return { name: nameToKey(line.substring(start, i)), end: i };
+        return { name: nameToKey(line.substring(start, i)), end: i }
       }
     }
   }
-  nagVC(nags, 'PROP_NAME_EOL', { property: line.substring(start), line });
-  return null;
+  nagVC(nags, 'PROP_NAME_EOL', { property: line.substring(start), line })
+  return null
 }
 
 type GroupedProperty = {
-  group?: Uppercase<string>;
-  property: Uppercase<string>;
-  end: number;
-};
+  group?: Uppercase<string>
+  property: Uppercase<string>
+  end: number
+}
 
 /**
  * Extract (group and) property names.
@@ -356,20 +348,27 @@ export function extractProperty(
   line: string,
   nags: Nag<VCardNagAttributes>[],
 ): GroupedProperty | null {
-  const part1 = scanPropertyOrGroup(line, 0, nags);
+  const part1 = scanPropertyOrGroup(line, 0, nags)
   if (part1 === null) {
-    return null;
+    return null
   }
   if (line.charAt(part1.end) !== '.') {
     // Ordinary property
-    return { property: part1.name, end: part1.end };
+    return {
+      property: part1.name.toUpperCase() as Uppercase<string>,
+      end: part1.end,
+    }
   } else {
     // Grouped property
-    const part2 = scanPropertyOrGroup(line, part1.end + 1, nags);
+    const part2 = scanPropertyOrGroup(line, part1.end + 1, nags)
     if (part2 === null) {
-      return null;
+      return null
     } else {
-      return { group: part1.name, property: part2.name, end: part2.end };
+      return {
+        group: part1.name.toUpperCase() as Uppercase<string>,
+        property: part2.name.toUpperCase() as Uppercase<string>,
+        end: part2.end,
+      }
     }
   }
 }
@@ -384,11 +383,11 @@ export function scanParamRawValue(
   line: string,
   start: number,
 ): { value: string; end: number } {
-  let index = start;
+  let index = start
   while (index < line.length && !':;'.includes(line.charAt(index))) {
-    index++;
+    index++
   }
-  return { value: line.substring(start, index), end: index };
+  return { value: line.substring(start, index), end: index }
 }
 
 /**
@@ -407,66 +406,66 @@ export function scanParamValues(
   property: string,
   parameter: string,
   nags: Nag<VCardNagAttributes>[],
-  singleValue: boolean = false,
+  singleValue = false,
 ): { value: string[]; end: number } | null {
-  const moreItemsChar = singleValue ? '' : ',';
-  const separatorChars = singleValue ? ';:' : ',;:';
-  let index = start;
-  let parameterValues: string[] = [];
-  let unescapedComma = false;
+  const moreItemsChar = singleValue ? '' : ','
+  const separatorChars = singleValue ? ';:' : ',;:'
+  let index = start
+  const parameterValues: string[] = []
+  let unescapedComma = false
   while (
     line.charAt(index) === (parameterValues.length === 0 ? '=' : moreItemsChar)
   ) {
-    index++;
+    index++
     if (line.charAt(index) === ',') {
-      unescapedComma = true;
+      unescapedComma = true
     }
     if (line.charAt(index) === '"') {
       // Quoted value
-      const closingQuote = line.indexOf('"', index + 1);
+      const closingQuote = line.indexOf('"', index + 1)
       if (closingQuote < 0) {
-        nagVC(nags, 'PARAM_UNCLOSED_QUOTE', { property, parameter, line });
-        return null;
+        nagVC(nags, 'PARAM_UNCLOSED_QUOTE', { property, parameter, line })
+        return null
       }
       parameterValues.push(
         scanSingleParamValue(
           line.substring(index + 1, closingQuote),
           (error) => {
-            nagVC(nags, error, { property, parameter, line });
+            nagVC(nags, error, { property, parameter, line })
           },
         ),
-      );
-      index = closingQuote + 1;
+      )
+      index = closingQuote + 1
     } else {
       // Potentially escaped value
-      let currentValue = '';
+      let currentValue = ''
       while (
         index < line.length &&
         !separatorChars.includes(line.charAt(index))
       ) {
         if (line.charAt(index) === ',') {
-          unescapedComma = true;
+          unescapedComma = true
         }
         if (line.charAt(index) === '\\') {
-          const escaped = line.charAt(index + 1);
+          const escaped = line.charAt(index + 1)
           if (escaped.toUpperCase() === 'N') {
-            currentValue += '\n';
+            currentValue += '\n'
           } else {
-            currentValue += escaped;
+            currentValue += escaped
           }
-          index += 2;
+          index += 2
         } else {
-          currentValue += line.charAt(index++);
+          currentValue += line.charAt(index++)
         }
       }
-      parameterValues.push(currentValue);
+      parameterValues.push(currentValue)
     }
   }
   if (unescapedComma) {
     // Only warn once per parameter
-    nagVC(nags, 'PARAM_UNESCAPED_COMMA', { property, parameter, line });
+    nagVC(nags, 'PARAM_UNESCAPED_COMMA', { property, parameter, line })
   }
-  return { value: parameterValues, end: index };
+  return { value: parameterValues, end: index }
 }
 
 /**
@@ -485,18 +484,18 @@ export function scanParamValue(
   parameter: string,
   nags: Nag<VCardNagAttributes>[],
 ): { value: string; end: number } | null {
-  const result = scanParamValues(line, start, property, parameter, nags, true);
+  const result = scanParamValues(line, start, property, parameter, nags, true)
   if (result) {
     /* istanbul ignore else */
     if (result.value.length === 1) {
-      return { value: result.value[0], end: result.end };
+      return { value: result.value[0], end: result.end }
     } else {
       // Should not happen anymore since the support of `singleValue`
-      nagVC(nags, 'PARAM_NOT_SINGLE', { property, parameter, line });
-      return null;
+      nagVC(nags, 'PARAM_NOT_SINGLE', { property, parameter, line })
+      return null
     }
   } else {
-    return null;
+    return null
   }
 }
 
@@ -512,26 +511,26 @@ export function parseParameters(
   nags: Nag<VCardNagAttributes>[],
   property: string,
 ): {
-  parameters: VCardParameters;
-  end: number;
+  parameters: VCardParameters
+  end: number
 } | null {
-  let index = start;
-  let parameters: VCardParameters = {};
+  let index = start
+  const parameters: VCardParameters = {}
   while (line.charAt(index) === ';') {
     // Parse another property: Name
-    index++;
-    const start = index;
+    index++
+    const start = index
     while (isPropertyChar(line.charAt(index))) {
-      index++;
+      index++
     }
-    const parameterName = nameToKey(line.substring(start, index));
+    const parameterName = nameToKey(line.substring(start, index))
     if (line.charAt(index) !== '=') {
       nagVC(nags, 'PARAM_MISSING_EQUALS', {
         property,
         parameter: parameterName,
         line,
-      });
-      return null;
+      })
+      return null
     }
     // Index still points at the equals sign!
 
@@ -546,7 +545,7 @@ export function parseParameters(
                 property,
                 parameter: parameterName,
                 line,
-              });
+              })
             }
             const retval = scanParamValue(
               line,
@@ -554,52 +553,54 @@ export function parseParameters(
               property,
               parameterName,
               nags,
-            );
+            )
             if (retval) {
-              index = retval.end;
+              index = retval.end
               if (knownParameters[parameterName].name === 'number') {
-                const num = parseInt(retval.value, 10);
+                const num = parseInt(retval.value, 10)
                 if (isFinite(num)) {
-                  (parameters as any)[parameterName] = num;
+                  ;(parameters as any)[parameterName] = num
                 } else {
                   nagVC(nags, 'PARAM_INVALID_NUMBER', {
                     property,
                     parameter: parameterName,
                     line,
-                  });
+                  })
                 }
               } else {
-                (parameters as any)[parameterName] = retval.value;
+                ;(parameters as any)[parameterName] = retval.value
               }
             } else {
-              return null;
+              return null
             }
           }
-          break;
+          break
         case 'string[+]':
-          // Re-scan the `=`
-          const values = scanParamValues(
-            line,
-            index,
-            property,
-            parameterName,
-            nags,
-          );
-          if (values == null) {
-            return null;
-          } else {
-            if (parameterName in parameters) {
-              (parameters[parameterName] as string[]) = (
-                parameters[parameterName] as string[]
-              ).concat(values.value);
+          {
+            // Re-scan the `=`
+            const values = scanParamValues(
+              line,
+              index,
+              property,
+              parameterName,
+              nags,
+            )
+            if (values == null) {
+              return null
             } else {
-              (parameters as any)[parameterName] = values.value;
+              if (parameterName in parameters) {
+                ;(parameters[parameterName] as string[]) = (
+                  parameters[parameterName] as string[]
+                ).concat(values.value)
+              } else {
+                ;(parameters as any)[parameterName] = values.value
+              }
+              index = values.end
             }
-            index = values.end;
           }
-          break;
+          break
         /* istanbul ignore next */
-        default:
+        default: {
           // Skip over this unknown type; should never happen
           const retval = scanParamValue(
             line,
@@ -607,33 +608,34 @@ export function parseParameters(
             property,
             parameterName,
             nags,
-          );
+          )
           nagVC(nags, 'PARAM_INVALID_TYPE', {
             property,
             parameter: parameterName,
             line,
-          });
+          })
           if (retval) {
-            index = retval.end;
+            index = retval.end
           } else {
-            return null;
+            return null
           }
+        }
       }
     } else {
-      parameters.x ??= {};
+      parameters.x ??= {}
       // scanParamRawValue, unlike scanParamValue(s), starts *after* the equals sign
-      const { value, end } = scanParamRawValue(line, index + 1);
+      const { value, end } = scanParamRawValue(line, index + 1)
       if (parameterName in parameters.x) {
         // This is inconsistent:
         // `KEY=value;KEY=v2` results in `{KEY: ['value', 'v2']}`, whereas
         // `KEY=value,v2` results in `{KEY: ['value,v2']}`.
         // However, this is the only way not to make assumptions about the value type.
-        parameters.x[parameterName].push(value);
+        parameters.x[parameterName].push(value)
       } else {
-        parameters.x[parameterName] = [value];
+        parameters.x[parameterName] = [value]
       }
-      index = end;
+      index = end
     }
   }
-  return { parameters, end: index };
+  return { parameters, end: index }
 }

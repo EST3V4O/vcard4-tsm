@@ -1,12 +1,13 @@
+/* eslint-disable no-use-before-define */
 // Minimalistic runtime type introspection for basic (and vCard value) types.
 // Modeled after [https://github.com/colinhacks/zod](Zod).
 
-import { errorKeys } from './errorCodes.js';
-import { NonEmptyArray } from './nonEmptyArray.js';
-import { scan1DValue, scan2DValue, scanSingleValue } from './scan.js';
+import { errorKeys } from './errorCodes.js'
+import { NonEmptyArray } from './nonEmptyArray.js'
+import { scan1DValue, scan2DValue, scanSingleValue } from './scan.js'
 
-export type TypeOf<T extends RuntimeTypeAnnotation<any>> = T['type'];
-export type Flatten<T extends object> = { [k in keyof T]: T[k] };
+export type TypeOf<T extends RuntimeTypeAnnotation<any>> = T['type']
+export type Flatten<T extends object> = { [k in keyof T]: T[k] }
 
 /**
  * Creates a subtype of the base schema, where only the keys are included
@@ -22,9 +23,9 @@ export type Flatten<T extends object> = { [k in keyof T]: T[k] };
 export type SubType<Base, Condition> = Pick<
   Base,
   {
-    [Key in keyof Base]: Base[Key] extends Condition ? Key : never;
+    [Key in keyof Base]: Base[Key] extends Condition ? Key : never
   }[keyof Base]
->;
+>
 /**
  * Creates a subtype of the Base schema, where only the keys are included
  * whose RuntimeTypeAnnotation type is compatible with Condition.
@@ -42,9 +43,9 @@ export type RTSubType<
 > = Pick<
   Base,
   {
-    [Key in keyof Base]: Base[Key]['type'] extends Condition ? Key : never;
+    [Key in keyof Base]: Base[Key]['type'] extends Condition ? Key : never
   }[keyof Base]
->;
+>
 
 export type Name =
   | 'string'
@@ -54,12 +55,12 @@ export type Name =
   | 'ADR'
   | 'N'
   | 'GENDER'
-  | 'CLIENTPIDMAP';
+  | 'CLIENTPIDMAP'
 
 export type ParseFunction<T> = (
   rawValue: string,
   errorCallback?: (error: errorKeys) => void,
-) => T;
+) => T
 
 export class RuntimeTypeAnnotation<Type> {
   /*
@@ -69,33 +70,33 @@ export class RuntimeTypeAnnotation<Type> {
    * to its type would require removing the `undefined` option.
    * This "white lie" seems to be cleaner.
    */
-  readonly type!: Type;
-  readonly name: Name;
-  readonly parse: ParseFunction<Type>;
+  readonly type!: Type
+  readonly name: Name
+  readonly parse: ParseFunction<Type>
   constructor(name: Name, parse: ParseFunction<Type>) {
-    this.name = name;
-    this.parse = parse;
+    this.name = name
+    this.parse = parse
   }
 }
 export const StringType = new RuntimeTypeAnnotation<string>(
   'string',
   (rawValue, errorCallback) => scanSingleValue(rawValue, errorCallback),
-);
+)
 export const NonEmptyStringArrayType = new RuntimeTypeAnnotation<
   NonEmptyArray<string>
->('string[+]', (rawValue) => scan1DValue(rawValue, ','));
+>('string[+]', (rawValue) => scan1DValue(rawValue, ','))
 export const NumberType = new RuntimeTypeAnnotation<number>(
   'number',
   (rawValue) => parseInt(rawValue, 10),
-);
+)
 export const ADRType = new RuntimeTypeAnnotation<{
-  postOfficeBox?: NonEmptyArray<string>;
-  extendedAddress?: NonEmptyArray<string>;
-  streetAddress?: NonEmptyArray<string>;
-  locality?: NonEmptyArray<string>;
-  region?: NonEmptyArray<string>;
-  postalCode?: NonEmptyArray<string>;
-  countryName?: NonEmptyArray<string>;
+  postOfficeBox?: NonEmptyArray<string>
+  extendedAddress?: NonEmptyArray<string>
+  streetAddress?: NonEmptyArray<string>
+  locality?: NonEmptyArray<string>
+  region?: NonEmptyArray<string>
+  postalCode?: NonEmptyArray<string>
+  countryName?: NonEmptyArray<string>
 }>('ADR', (rawValue) => {
   const [
     postOfficeBox,
@@ -105,7 +106,7 @@ export const ADRType = new RuntimeTypeAnnotation<{
     region,
     postalCode,
     countryName,
-  ] = scan2DValue(rawValue);
+  ] = scan2DValue(rawValue)
   return {
     postOfficeBox,
     extendedAddress,
@@ -114,14 +115,14 @@ export const ADRType = new RuntimeTypeAnnotation<{
     region,
     postalCode,
     countryName,
-  };
-});
+  }
+})
 export const NType = new RuntimeTypeAnnotation<{
-  familyNames: NonEmptyArray<string>;
-  givenNames: NonEmptyArray<string>;
-  additionalNames: NonEmptyArray<string>;
-  honorificPrefixes: NonEmptyArray<string>;
-  honorificSuffixes: NonEmptyArray<string>;
+  familyNames: NonEmptyArray<string>
+  givenNames: NonEmptyArray<string>
+  additionalNames: NonEmptyArray<string>
+  honorificPrefixes: NonEmptyArray<string>
+  honorificSuffixes: NonEmptyArray<string>
 }>('N', (rawValue) => {
   const [
     familyNames,
@@ -129,29 +130,29 @@ export const NType = new RuntimeTypeAnnotation<{
     additionalNames,
     honorificPrefixes,
     honorificSuffixes,
-  ] = scan2DValue(rawValue);
+  ] = scan2DValue(rawValue)
   return {
     familyNames,
     givenNames,
     additionalNames,
     honorificPrefixes,
     honorificSuffixes,
-  };
-});
+  }
+})
 export const GENDERType = new RuntimeTypeAnnotation<{
-  sex: string;
-  text?: string;
+  sex: string
+  text?: string
 }>('GENDER', (rawValue) => {
-  const [sex, text] = scan1DValue(rawValue, ';');
-  return { sex, text };
-});
+  const [sex, text] = scan1DValue(rawValue, ';')
+  return { sex, text }
+})
 export const CLIENTPIDMAPType = new RuntimeTypeAnnotation<{
-  pidRef: number;
-  uri: string;
+  pidRef: number
+  uri: string
 }>('CLIENTPIDMAP', (rawValue) => {
-  const [pidRef, uri] = scan1DValue(rawValue, ';');
-  return { pidRef: parseInt(pidRef, 10), uri };
-});
+  const [pidRef, uri] = scan1DValue(rawValue, ';')
+  return { pidRef: parseInt(pidRef, 10), uri }
+})
 
 /**
  * Creates a type guard function, which will check whether its parameter, the key,
@@ -169,8 +170,8 @@ export function keyTypeGuard<T extends Record<string, any>>(
   schema: T,
 ): (key: string) => key is keyof T & string {
   return (key): key is keyof T & string => {
-    return key in schema;
-  };
+    return key in schema
+  }
 }
 
 /**

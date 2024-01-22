@@ -1,11 +1,11 @@
-import { errorKeys, errors } from './errorCodes.js';
+import { errorKeys, errors } from './errorCodes.js'
 
 export type Nag<Attributes> = {
-  key: string;
-  description: string;
-  isError: boolean;
-  attributes?: Attributes;
-};
+  key: string
+  description: string
+  isError: boolean
+  attributes?: Attributes
+}
 
 /**
  * Add a problem for this nag list
@@ -18,22 +18,22 @@ export function nag<Attributes>(
   key: errorKeys,
   attributes?: Attributes,
 ) {
-  let data: Nag<Attributes> = {
+  const data: Nag<Attributes> = {
     key,
     description: errors[key][0],
     isError: errors[key][1],
-  };
-  if (attributes) {
-    data.attributes = attributes;
   }
-  nags.push(data);
+  if (attributes) {
+    data.attributes = attributes
+  }
+  nags.push(data)
 }
 
 export type VCardNagAttributes = {
-  property: string;
-  parameter?: string;
-  line?: string;
-};
+  property: string
+  parameter?: string
+  line?: string
+}
 /**
  * Append a nag specific to a vCard or vCard line
  * @param nags The list to append this nag to
@@ -47,12 +47,12 @@ export function nagVC(
 ) {
   if (attributes.line) {
     // Shorten the potentially homunguous unwrapped lines (e.g. PHOTO)
-    attributes.line = shorten(attributes.line);
+    attributes.line = shorten(attributes.line)
   }
-  nag(nags, key, attributes);
+  nag(nags, key, attributes)
 }
 
-export const SHORTEN_TO = 30;
+export const SHORTEN_TO = 30
 /**
  * Shortens a string to at most `MAX_DEBUG` chars (plus a trailing `…`, if it was shortened)
  * @param s String
@@ -60,8 +60,8 @@ export const SHORTEN_TO = 30;
  */
 export function shorten(s: string, shortenTo: number = SHORTEN_TO): string {
   if (s.length > SHORTEN_TO) {
-    return s.substring(0, shortenTo - 1) + '…';
+    return s.substring(0, shortenTo - 1) + '…'
   } else {
-    return s;
+    return s
   }
 }

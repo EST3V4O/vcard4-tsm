@@ -31,5 +31,5 @@ export const errors = {
   // Problems concerning the actual property value
   VALUE_INVALID: ['Invalid property value', true],
   VALUE_UNESCAPED_COMMA: ['Unescaped comma in value', false],
-} as const;
-export type errorKeys = keyof typeof errors;
+} as const
+export type errorKeys = keyof typeof errors

@@ -1,5 +1,8 @@
-import { Nag, VCardNagAttributes } from '../errors.js';
-import { errorKeys } from '../errorCodes.js';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { Assertion, AsymmetricMatchersContaining } from 'vitest'
+
+import { Nag, VCardNagAttributes } from '../errors.js'
+import { errorKeys } from '../errorCodes.js'
 import {
   scanPropertyOrGroup,
   extractProperty,
@@ -7,390 +10,392 @@ import {
   parseVCards,
   parseLine,
   PartialVCard,
-} from '../parse.js';
+} from '../parse.js'
+
+interface CustomMatchers<R = unknown> {
+  toNagAbout(a: errorKeys): R
+  toNagAboutMany(a: errorKeys[]): R
+}
+
+declare module 'vitest' {
+  // eslint-disable-next-line @typescript-eslint/no-empty-interface
+  interface Assertion<T = any> extends CustomMatchers<T> {}
+  // eslint-disable-next-line @typescript-eslint/no-empty-interface
+  interface AsymmetricMatchersContaining extends CustomMatchers {}
+}
 
 expect.extend({
-  toNagAbout(received, error: errorKeys) {
+  toNagAbout(received: unknown, error: errorKeys) {
     const pass =
       Array.isArray(received) &&
-      received.length == 1 &&
+      received.length === 1 &&
       'key' in received[0] &&
-      received[0].key === error;
+      received[0].key === error
     if (pass) {
       return {
         message: () =>
           `expected ${JSON.stringify(received)} not to nag about ${error}`,
         pass: true,
-      };
+      }
     } else {
       return {
         message: () =>
           `expected ${JSON.stringify(received)} to nag about ${error}`,
         pass: false,
-      };
+      }
     }
   },
-});
-expect.extend({
-  toNagAboutMany(received, errors: errorKeys[]) {
-    let pass: boolean;
+  toNagAboutMany(received: unknown, errors: errorKeys[]) {
+    let pass: boolean
     if (Array.isArray(received)) {
       const r = received
         .map((v) => {
           if ('key' in v) {
-            return v.key;
+            return v.key
           } else {
-            return undefined;
+            return undefined
           }
         })
-        .sort();
-      const e = errors.sort();
-      pass = r === e;
+        .sort()
+      const e = errors.sort()
+      pass = r === e
     } else {
-      pass = false;
+      pass = false
     }
     if (pass) {
       return {
         message: () =>
           `expected ${JSON.stringify(received)} not to nag about ${errors}`,
         pass: true,
-      };
+      }
     } else {
       return {
         message: () =>
           `expected ${JSON.stringify(received)} to nag about ${errors}`,
         pass: false,
-      };
+      }
     }
   },
-});
-declare global {
-  namespace jest {
-    interface Matchers<R> {
-      toNagAbout(a: errorKeys): R;
-      toNagAboutMany(a: errorKeys[]): R;
-    }
-  }
-}
+})
 
 describe('Property name parsing', () => {
   it('should parse basic name', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(scanPropertyOrGroup('ADR:x', 0, nags)).toStrictEqual({
       name: 'ADR',
       end: 3,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should parse basic name with properties', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(scanPropertyOrGroup('ADR;x=y:z', 0, nags)).toStrictEqual({
       name: 'ADR',
       end: 3,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should now also accept property starting with a dash', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(scanPropertyOrGroup('-ADR;x=y:z', 0, nags)).toStrictEqual({
       name: '_ADR',
       end: 4,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should allow dash inside property name', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(scanPropertyOrGroup('X-ABUID:z', 0, nags)).toStrictEqual({
       name: 'X_ABUID',
       end: 7,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should allow digits inside property name', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(scanPropertyOrGroup('X-ABUID9:z', 0, nags)).toStrictEqual({
       name: 'X_ABUID9',
       end: 8,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should work inside the string', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(scanPropertyOrGroup('-X-ABUID9:z', 1, nags)).toStrictEqual({
       name: 'X_ABUID9',
       end: 9,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should detect empty properties', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
-    expect(scanPropertyOrGroup(':z', 0, nags)).toStrictEqual(null);
-    expect(nags).toNagAbout('PROP_NAME_EMPTY');
-  });
+    const nags: Nag<VCardNagAttributes>[] = []
+    expect(scanPropertyOrGroup(':z', 0, nags)).toStrictEqual(null)
+    expect(nags).toNagAbout('PROP_NAME_EMPTY')
+  })
   it('should detect properties ended by EOF', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
-    expect(scanPropertyOrGroup('ABC', 0, nags)).toStrictEqual(null);
-    expect(nags).toNagAbout('PROP_NAME_EOL');
-  });
+    const nags: Nag<VCardNagAttributes>[] = []
+    expect(scanPropertyOrGroup('ABC', 0, nags)).toStrictEqual(null)
+    expect(nags).toNagAbout('PROP_NAME_EOL')
+  })
   it('should complain about empty property names', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
-    expect(scanPropertyOrGroup(':x', 0, nags)).toStrictEqual(null);
-    expect(nags).toNagAbout('PROP_NAME_EMPTY');
-  });
-});
+    const nags: Nag<VCardNagAttributes>[] = []
+    expect(scanPropertyOrGroup(':x', 0, nags)).toStrictEqual(null)
+    expect(nags).toNagAbout('PROP_NAME_EMPTY')
+  })
+})
 
 describe('Property/group extraction', () => {
   it('should parse basic name', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('ADR:x', nags)).toStrictEqual({
       property: 'ADR',
       end: 3,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should parse basic name with properties', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('ADR;x=y:z', nags)).toStrictEqual({
       property: 'ADR',
       end: 3,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should now also allow properties starting with a dash', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('-ADR;x=y:z', nags)).toStrictEqual({
       property: '_ADR',
       end: 4,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should allow dash inside property name', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('X-ABUID:z', nags)).toStrictEqual({
       property: 'X_ABUID',
       end: 7,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should allow digits inside property name', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('X-ABUID9:z', nags)).toStrictEqual({
       property: 'X_ABUID9',
       end: 8,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should parse basic groups', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('A.ADR:x', nags)).toStrictEqual({
       group: 'A',
       property: 'ADR',
       end: 5,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
 
   it('should parse numeric groups', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('9.ADR:x', nags)).toStrictEqual({
       group: '9',
       property: 'ADR',
       end: 5,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should now also allow dash-starting groups', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('-9.ADR:x', nags)).toStrictEqual({
       group: '_9',
       property: 'ADR',
       end: 6,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should now also allow dash-starting grouped properties', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(extractProperty('9.-ADR:x', nags)).toStrictEqual({
       group: '9',
       property: '_ADR',
       end: 6,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should nag on empty property', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
-    expect(extractProperty(':x', nags)).toStrictEqual(null);
-    expect(nags).toNagAbout('PROP_NAME_EMPTY');
-  });
+    const nags: Nag<VCardNagAttributes>[] = []
+    expect(extractProperty(':x', nags)).toStrictEqual(null)
+    expect(nags).toNagAbout('PROP_NAME_EMPTY')
+  })
   it('should nag on empty group name', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
-    expect(extractProperty('.ADR:x', nags)).toStrictEqual(null);
-    expect(nags).toNagAbout('PROP_NAME_EMPTY');
-  });
+    const nags: Nag<VCardNagAttributes>[] = []
+    expect(extractProperty('.ADR:x', nags)).toStrictEqual(null)
+    expect(nags).toNagAbout('PROP_NAME_EMPTY')
+  })
   it('should nag on empty grouped property', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
-    expect(extractProperty('9.:x', nags)).toStrictEqual(null);
-    expect(nags).toNagAbout('PROP_NAME_EMPTY');
-  });
-});
+    const nags: Nag<VCardNagAttributes>[] = []
+    expect(extractProperty('9.:x', nags)).toStrictEqual(null)
+    expect(nags).toNagAbout('PROP_NAME_EMPTY')
+  })
+})
 
 describe('x parameter parsing', () => {
   it('should handle x key/values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;KEY=value:x', 1, nags, 'X')).toStrictEqual({
       parameters: { x: { KEY: ['value'] } },
       end: 11,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle raw x key/values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;KEY=value,v2:x', 1, nags, 'X')).toStrictEqual({
       parameters: { x: { KEY: ['value,v2'] } },
       end: 14,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle duplicate x key/values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;KEY=value;KEY=v2:x', 1, nags, 'X')).toStrictEqual(
       {
         parameters: { x: { KEY: ['value', 'v2'] } },
         end: 18,
       },
-    );
-    expect(nags).toStrictEqual([]);
-  });
+    )
+    expect(nags).toStrictEqual([])
+  })
   it('should upcase keys', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;key=value:x', 1, nags, 'X')).toStrictEqual({
       parameters: { x: { KEY: ['value'] } },
       end: 11,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle empty values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;K1=;K2=:x', 1, nags, 'X')).toStrictEqual({
       parameters: { x: { K1: [''], K2: [''] } },
       end: 9,
-    });
-    expect(nags).toStrictEqual([]);
-  });
-});
+    })
+    expect(nags).toStrictEqual([])
+  })
+})
 
 describe('String parameter parsing', () => {
   it('should handle string key/values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;LANGUAGE=de:x', 1, nags, 'X')).toStrictEqual({
       parameters: { LANGUAGE: 'de' },
       end: 13,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
 
   it('should upcase keys', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;language=de:x', 1, nags, 'X')).toStrictEqual({
       parameters: { LANGUAGE: 'de' },
       end: 13,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should complain on duplicate keys', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;language=de;LANGUAGE=en:x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { LANGUAGE: 'en' },
       end: 25,
-    });
-    expect(nags).toNagAbout('PARAM_DUPLICATE');
-  });
+    })
+    expect(nags).toNagAbout('PARAM_DUPLICATE')
+  })
   it('should handle empty values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;LANGUAGE=:x', 1, nags, 'X')).toStrictEqual({
       parameters: { LANGUAGE: '' },
       end: 11,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle newline escapes', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;LANGUAGE=v1\\nv2:x', 1, nags, 'X')).toStrictEqual(
       {
         parameters: { LANGUAGE: 'v1\nv2' },
         end: 17,
       },
-    );
-    expect(nags).toStrictEqual([]);
-  });
+    )
+    expect(nags).toStrictEqual([])
+  })
   it('should handle escaped commas', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;LANGUAGE=v1\\,v2:x', 1, nags, 'X')).toStrictEqual(
       {
         parameters: { LANGUAGE: 'v1,v2' },
         end: 17,
       },
-    );
-    expect(nags).toStrictEqual([]);
-  });
+    )
+    expect(nags).toStrictEqual([])
+  })
   it('should handle escaped semicolons', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;LANGUAGE=v1\\;v2:x', 1, nags, 'X')).toStrictEqual(
       {
         parameters: { LANGUAGE: 'v1;v2' },
         end: 17,
       },
-    );
-    expect(nags).toStrictEqual([]);
-  });
+    )
+    expect(nags).toStrictEqual([])
+  })
   it('should handle escaped backslashes', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;LANGUAGE=v1\\\\v2:x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { LANGUAGE: 'v1\\v2' },
       end: 17,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle unnecessarily escaped other chars', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;LANGUAGE=v1\\+v2:x', 1, nags, 'X')).toStrictEqual(
       {
         parameters: { LANGUAGE: 'v1+v2' },
         end: 17,
       },
-    );
-    expect(nags).toStrictEqual([]);
-  });
+    )
+    expect(nags).toStrictEqual([])
+  })
   it('should handle (and detect) unescaped commas after backslashes', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;LANGUAGE=v1\\\\,v2:x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { LANGUAGE: 'v1\\,v2' },
       end: 18,
-    });
-    expect(nags).toNagAbout('PARAM_UNESCAPED_COMMA');
-  });
+    })
+    expect(nags).toNagAbout('PARAM_UNESCAPED_COMMA')
+  })
   it('should handle quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;LANGUAGE="abc":x', 1, nags, 'X')).toStrictEqual({
       parameters: { LANGUAGE: 'abc' },
       end: 16,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle special chars in quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;LANGUAGE="a,b;c:d":x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { LANGUAGE: 'a,b;c:d' },
       end: 20,
-    });
+    })
     expect(nags).toStrictEqual([
       {
         attributes: {
@@ -402,16 +407,16 @@ describe('String parameter parsing', () => {
         isError: false,
         key: 'PARAM_UNESCAPED_COMMA',
       },
-    ]);
-  });
+    ])
+  })
   it('should handle newlines in quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;LANGUAGE="A^nB\\^nC":x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { LANGUAGE: 'A\nB\\\nC' },
       end: 21,
-    });
+    })
     expect(nags).toStrictEqual([
       {
         attributes: {
@@ -423,16 +428,16 @@ describe('String parameter parsing', () => {
         isError: false,
         key: 'PARAM_BAD_BACKSLASH',
       },
-    ]);
-  });
+    ])
+  })
   it('should nag about backslashes in quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;LANGUAGE="a\\,b;c:d\\":x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { LANGUAGE: 'a\\,b;c:d\\' },
       end: 22,
-    });
+    })
     expect(nags).toStrictEqual([
       {
         attributes: {
@@ -454,90 +459,90 @@ describe('String parameter parsing', () => {
         isError: false,
         key: 'PARAM_UNESCAPED_COMMA',
       },
-    ]);
-  });
-});
+    ])
+  })
+})
 
 describe('Multi-string parameter parsing', () => {
   it('should handle multiple values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;TYPE=v1,v2:x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['v1', 'v2'] },
       end: 12,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle multiple keys', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;LANGUAGE=de;GEO=here:x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { LANGUAGE: 'de', GEO: 'here' },
       end: 22,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle multiple keys and values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;TYPE=v1,v2;TYPE=v3,v4:x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { TYPE: ['v1', 'v2', 'v3', 'v4'] },
       end: 23,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle newline escapes', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;TYPE=v1\\nv2:x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['v1\nv2'] },
       end: 13,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle escaped commas', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;TYPE=v1\\,v2:x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['v1,v2'] },
       end: 13,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle escaped semicolons', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;TYPE=v1\\;v2:x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['v1;v2'] },
       end: 13,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle escaped backslashes', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;type=v1\\\\v2:x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['v1\\v2'] },
       end: 13,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle unnecessarily escaped other chars', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;TYPE=v1\\+v2:x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['v1+v2'] },
       end: 13,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
 
   it('should handle unescaped commas after backslashes', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;TYPE=v1\\\\,v2:x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['v1\\', 'v2'] },
       end: 14,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle complicated escapes', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters(
         'x;TYPE=v1\\;\\n\\,,\\v2\\\\,;TYPE=\\:\\n\\\\n\\\\\\n:x',
@@ -548,23 +553,23 @@ describe('Multi-string parameter parsing', () => {
     ).toStrictEqual({
       parameters: { TYPE: ['v1;\n,', 'v2\\', '', ':\n\\n\\\n'] },
       end: 39,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;TYPE="abc":x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['abc'] },
       end: 12,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle special chars in quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(parseParameters('x;TYPE="a,b;c:d":x', 1, nags, 'X')).toStrictEqual({
       parameters: { TYPE: ['a,b;c:d'] },
       end: 16,
-    });
+    })
     expect(nags).toStrictEqual([
       {
         attributes: {
@@ -576,16 +581,16 @@ describe('Multi-string parameter parsing', () => {
         isError: false,
         key: 'PARAM_UNESCAPED_COMMA',
       },
-    ]);
-  });
+    ])
+  })
   it('should handle newlines in quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;TYPE="A^n\\nB\\^nC":x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { TYPE: ['A\n\\nB\\\nC'] },
       end: 19,
-    });
+    })
     expect(nags).toStrictEqual([
       {
         attributes: {
@@ -597,16 +602,16 @@ describe('Multi-string parameter parsing', () => {
         isError: false,
         key: 'PARAM_BAD_BACKSLASH',
       },
-    ]);
-  });
+    ])
+  })
   it('should ignore most other backslashes in quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;TYPE="a\\,b;c:d\\":x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { TYPE: ['a\\,b;c:d\\'] },
       end: 18,
-    });
+    })
     expect(nags).toStrictEqual([
       {
         attributes: {
@@ -628,34 +633,34 @@ describe('Multi-string parameter parsing', () => {
         isError: false,
         key: 'PARAM_UNESCAPED_COMMA',
       },
-    ]);
-  });
+    ])
+  })
   it('should handle multiple quoted values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;TYPE="a b c","d e f":x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { TYPE: ['a b c', 'd e f'] },
       end: 22,
-    });
-    expect(nags).toStrictEqual([]);
-  });
+    })
+    expect(nags).toStrictEqual([])
+  })
   it('should handle mixed values', () => {
-    let nags: Nag<VCardNagAttributes>[] = [];
+    const nags: Nag<VCardNagAttributes>[] = []
     expect(
       parseParameters('x;TYPE="a b c",d e f,"g h i":x', 1, nags, 'X'),
     ).toStrictEqual({
       parameters: { TYPE: ['a b c', 'd e f', 'g h i'] },
       end: 28,
-    });
-    expect(nags).toStrictEqual([]);
-  });
-});
+    })
+    expect(nags).toStrictEqual([])
+  })
+})
 
 describe('Line parsing', () => {
   it('should nag on empty property', () => {
-    let partialVCard: PartialVCard = { nags: [], unparseable: [] };
-    parseLine(partialVCard, ':x');
+    const partialVCard: PartialVCard = { nags: [], unparseable: [] }
+    parseLine(partialVCard, ':x')
     expect(partialVCard).toStrictEqual({
       nags: [
         {
@@ -666,11 +671,11 @@ describe('Line parsing', () => {
         },
       ],
       unparseable: [':x'],
-    });
-  });
+    })
+  })
   it('should nag on bad parameter', () => {
-    let partialVCard: PartialVCard = { nags: [], unparseable: [] };
-    parseLine(partialVCard, 'ADR;y:x');
+    const partialVCard: PartialVCard = { nags: [], unparseable: [] }
+    parseLine(partialVCard, 'ADR;y:x')
     expect(partialVCard).toStrictEqual({
       nags: [
         {
@@ -681,11 +686,11 @@ describe('Line parsing', () => {
         },
       ],
       unparseable: ['ADR;y:x'],
-    });
-  });
+    })
+  })
   it('should nag on bad value', () => {
-    let partialVCard: PartialVCard = { nags: [], unparseable: [] };
-    parseLine(partialVCard, 'PHOTO:data:image/jpeg;base64,/9j/');
+    const partialVCard: PartialVCard = { nags: [], unparseable: [] }
+    parseLine(partialVCard, 'PHOTO:data:image/jpeg;base64,/9j/')
     expect(partialVCard).toStrictEqual({
       PHOTO: [
         {
@@ -705,11 +710,11 @@ describe('Line parsing', () => {
         },
       ],
       unparseable: [],
-    });
-  });
+    })
+  })
   it('should nag on unterminated parameter value', () => {
-    let partialVCard: PartialVCard = { nags: [], unparseable: [] };
-    parseLine(partialVCard, 'tel;cc=":');
+    const partialVCard: PartialVCard = { nags: [], unparseable: [] }
+    parseLine(partialVCard, 'tel;cc=":')
     expect(partialVCard).toStrictEqual({
       nags: [
         {
@@ -720,9 +725,9 @@ describe('Line parsing', () => {
         },
       ],
       unparseable: ['tel;cc=":'],
-    });
-  });
-});
+    })
+  })
+})
 
 describe('vCard parsing', () => {
   it('should put things together', () => {
@@ -755,8 +760,8 @@ describe('vCard parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
 
   it('should nag about underspecified cards', () => {
     expect(parseVCards('END:VCARD', true)).toStrictEqual({
@@ -801,8 +806,8 @@ describe('vCard parsing', () => {
           ],
         },
       ],
-    });
-  });
+    })
+  })
   it('should nag about underspecified cards when discarding', () => {
     expect(parseVCards('END:VCARD', false)).toStrictEqual({
       nags: [
@@ -812,8 +817,8 @@ describe('vCard parsing', () => {
           isError: true,
         },
       ],
-    });
-  });
+    })
+  })
 
   it('should somehow handle bogus cards', () => {
     expect(
@@ -860,8 +865,8 @@ describe('vCard parsing', () => {
           ],
         },
       ],
-    });
-  });
+    })
+  })
 
   it('should ignore bogus cards, if told so', () => {
     expect(
@@ -874,8 +879,8 @@ describe('vCard parsing', () => {
           isError: true,
         },
       ],
-    });
-  });
+    })
+  })
 
   it('should handle multiple values', () => {
     expect(
@@ -902,8 +907,8 @@ describe('vCard parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
   it('should nag about duplicate properties', () => {
     expect(
       parseVCards(
@@ -930,8 +935,8 @@ describe('vCard parsing', () => {
           unparseable: ['UID:456'],
         },
       ],
-    });
-  });
+    })
+  })
   it('should nag about plain LF', () => {
     // Not conformant with the RFC, but I believe we should accept it
     expect(
@@ -956,8 +961,8 @@ describe('vCard parsing', () => {
           isError: false,
         },
       ],
-    });
-  });
+    })
+  })
   it('should accept missing terminal CRLF', () => {
     expect(
       parseVCards(
@@ -974,8 +979,8 @@ describe('vCard parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
 
   it('should accept additional leading CRLF', () => {
     // Not conformant with the RFC, but I believe we should accept it
@@ -994,8 +999,8 @@ describe('vCard parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
   it('should handle multiple vCards', () => {
     expect(
       parseVCards(
@@ -1019,8 +1024,8 @@ describe('vCard parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
   it('should handle empty lines', () => {
     // Not conformant with the RFC, but I believe we should accept it
     expect(
@@ -1045,8 +1050,8 @@ describe('vCard parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
   it('should handle x properties', () => {
     expect(
       parseVCards(
@@ -1070,8 +1075,8 @@ describe('vCard parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
   it('should nag about commas in single-string parameter values', () => {
     expect(
       parseVCards(
@@ -1102,8 +1107,8 @@ describe('vCard parsing', () => {
           ],
         },
       ],
-    });
-  });
+    })
+  })
   it('should nag about unclosed parameter quotes in multi-strings', () => {
     expect(
       parseVCards(
@@ -1133,8 +1138,8 @@ describe('vCard parsing', () => {
           unparseable: ['UID;TYPE="de:123'],
         },
       ],
-    });
-  });
+    })
+  })
   it('should handle number parameters', () => {
     expect(
       parseVCards(
@@ -1152,8 +1157,8 @@ describe('vCard parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
   it('should nag about invalid number parameters', () => {
     expect(
       parseVCards(
@@ -1183,8 +1188,8 @@ describe('vCard parsing', () => {
           ],
         },
       ],
-    });
-  });
+    })
+  })
   it('should nag about quoted multiple strings', () => {
     expect(
       parseVCards(
@@ -1214,6 +1219,6 @@ describe('vCard parsing', () => {
           ],
         },
       ],
-    });
-  });
-});
+    })
+  })
+})

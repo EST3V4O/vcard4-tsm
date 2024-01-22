@@ -1,5 +1,5 @@
-import { errorKeys } from './errorCodes.js';
-import { NonEmptyArray } from './nonEmptyArray.js';
+import { errorKeys } from './errorCodes.js'
+import { NonEmptyArray } from './nonEmptyArray.js'
 
 /**
  * Remove escape sequences from a single value string.
@@ -11,29 +11,29 @@ export function scanSingleValue(
   s: string,
   errorCallback?: (error: errorKeys) => void,
 ): string {
-  let index = 0;
-  let value = '';
-  let unescapedComma = false;
+  let index = 0
+  let value = ''
+  let unescapedComma = false
   while (index < s.length) {
     if (s.charAt(index) === '\\') {
-      const escaped = s.charAt(index + 1);
+      const escaped = s.charAt(index + 1)
       if (escaped.toUpperCase() === 'N') {
-        value += '\n';
+        value += '\n'
       } else {
-        value += escaped;
+        value += escaped
       }
-      index += 2;
+      index += 2
     } else {
       if (s.charAt(index) === ',') {
-        unescapedComma = true;
+        unescapedComma = true
       }
-      value += s.charAt(index++);
+      value += s.charAt(index++)
     }
   }
   if (unescapedComma && errorCallback) {
-    errorCallback('VALUE_UNESCAPED_COMMA');
+    errorCallback('VALUE_UNESCAPED_COMMA')
   }
-  return value;
+  return value
 }
 
 /**
@@ -47,43 +47,43 @@ export function scanSingleParamValue(
   s: string,
   errorCallback: ((error: errorKeys) => void) | null,
 ): string {
-  let index = 0;
-  let value = '';
-  let warnings: Set<errorKeys> = new Set();
+  let index = 0
+  let value = ''
+  const warnings: Set<errorKeys> = new Set()
   while (index < s.length) {
-    const char = s.charAt(index);
+    const char = s.charAt(index)
     if (char === '^') {
-      const escaped = s.charAt(index + 1);
+      const escaped = s.charAt(index + 1)
       switch (escaped) {
         case '^':
-          value += '^';
-          break;
+          value += '^'
+          break
         case "'":
-          value += '"';
-          break;
+          value += '"'
+          break
         case 'n': // RFC says U+005E only
-          value += '\n';
-          break;
+          value += '\n'
+          break
         default:
-          value += '^' + escaped;
-          warnings.add('PARAM_BAD_CIRCUMFLEX');
-          break;
+          value += '^' + escaped
+          warnings.add('PARAM_BAD_CIRCUMFLEX')
+          break
       }
-      index += 2;
+      index += 2
     } else {
       if (char === ',') {
-        warnings.add('PARAM_UNESCAPED_COMMA');
+        warnings.add('PARAM_UNESCAPED_COMMA')
       } else if (char === '\\') {
-        warnings.add('PARAM_BAD_BACKSLASH');
+        warnings.add('PARAM_BAD_BACKSLASH')
       }
-      value += char;
-      index++;
+      value += char
+      index++
     }
   }
   if (errorCallback) {
-    warnings.forEach(errorCallback);
+    warnings.forEach(errorCallback)
   }
-  return value;
+  return value
 }
 
 /**
@@ -97,29 +97,29 @@ export function scan1DValue(
   s: string,
   splitChar: ',' | ';',
 ): NonEmptyArray<string> {
-  let retval: string[] = [];
-  let index = 0;
-  let unescaped = '';
+  const retval: string[] = []
+  let index = 0
+  let unescaped = ''
   while (index < s.length) {
-    const c = s.charAt(index);
+    const c = s.charAt(index)
     if (c === splitChar) {
-      retval.push(unescaped);
-      unescaped = '';
-      index++;
+      retval.push(unescaped)
+      unescaped = ''
+      index++
     } else if (c === '\\') {
-      const escaped = s.charAt(index + 1);
+      const escaped = s.charAt(index + 1)
       if (escaped.toUpperCase() === 'N') {
-        unescaped += '\n';
+        unescaped += '\n'
       } else {
-        unescaped += escaped;
+        unescaped += escaped
       }
-      index += 2;
+      index += 2
     } else {
-      unescaped += s.charAt(index++);
+      unescaped += s.charAt(index++)
     }
   }
-  retval.push(unescaped);
-  return retval as NonEmptyArray<string>;
+  retval.push(unescaped)
+  return retval as NonEmptyArray<string>
 }
 
 /**
@@ -129,35 +129,35 @@ export function scan1DValue(
  * @returns 2D string array
  */
 export function scan2DValue(s: string): NonEmptyArray<NonEmptyArray<string>> {
-  let retval: NonEmptyArray<string>[] = [];
-  let currentValue: string[] = [];
-  let index = 0;
-  let unescaped = '';
+  const retval: NonEmptyArray<string>[] = []
+  let currentValue: string[] = []
+  let index = 0
+  let unescaped = ''
   while (index < s.length) {
-    const c = s.charAt(index);
+    const c = s.charAt(index)
     if (c === ';') {
-      currentValue.push(unescaped);
-      unescaped = '';
-      retval.push(currentValue as NonEmptyArray<string>);
-      currentValue = [];
-      index++;
+      currentValue.push(unescaped)
+      unescaped = ''
+      retval.push(currentValue as NonEmptyArray<string>)
+      currentValue = []
+      index++
     } else if (c === ',') {
-      currentValue.push(unescaped);
-      unescaped = '';
-      index++;
+      currentValue.push(unescaped)
+      unescaped = ''
+      index++
     } else if (c === '\\') {
-      const escaped = s.charAt(index + 1);
+      const escaped = s.charAt(index + 1)
       if (escaped.toUpperCase() === 'N') {
-        unescaped += '\n';
+        unescaped += '\n'
       } else {
-        unescaped += escaped;
+        unescaped += escaped
       }
-      index += 2;
+      index += 2
     } else {
-      unescaped += s.charAt(index++);
+      unescaped += s.charAt(index++)
     }
   }
-  currentValue.push(unescaped);
-  retval.push(currentValue as NonEmptyArray<string>);
-  return retval as NonEmptyArray<NonEmptyArray<string>>;
+  currentValue.push(unescaped)
+  retval.push(currentValue as NonEmptyArray<string>)
+  return retval as NonEmptyArray<NonEmptyArray<string>>
 }

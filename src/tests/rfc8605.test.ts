@@ -1,4 +1,4 @@
-import { parseVCards } from '../parse.js';
+import { parseVCards } from '../parse.js'
 
 describe('RFC8605 parsing', () => {
   it('should recognize CC', () => {
@@ -31,8 +31,8 @@ describe('RFC8605 parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
+    })
+  })
   it('should recognize CC', () => {
     expect(
       parseVCards(
@@ -53,6 +53,6 @@ describe('RFC8605 parsing', () => {
           hasErrors: false,
         },
       ],
-    });
-  });
-});
+    })
+  })
+})

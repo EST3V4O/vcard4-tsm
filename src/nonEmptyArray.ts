@@ -1,4 +1,4 @@
-export type NonEmptyArray<T> = [T, ...T[]];
+export type NonEmptyArray<T> = [T, ...T[]]
 
 /**
  * Whether the array is not empty.
@@ -6,7 +6,7 @@ export type NonEmptyArray<T> = [T, ...T[]];
  * @returns Non-emptiness (as a type guard)
  */
 export function isNonEmptyArray<T>(a: T[]): a is NonEmptyArray<T> {
-  return a.length > 0;
+  return a.length > 0
 }
 
 /**
@@ -15,5 +15,5 @@ export function isNonEmptyArray<T>(a: T[]): a is NonEmptyArray<T> {
  * @returns A non-empty array or undefined
  */
 export function maybeArray<T>(a: T[]): NonEmptyArray<T> | undefined {
-  return isNonEmptyArray(a) ? a : undefined;
+  return isNonEmptyArray(a) ? a : undefined
 }
